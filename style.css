@@ -496,3 +496,4 @@ footer {
 }
 
 /* The Event log is too small so i added some more lenght to it so it will fit the other sections */
+/* The event log section expends too much with more steps and actions so i make it static so it will not increase to unusual lenght */
