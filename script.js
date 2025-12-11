@@ -1184,3 +1184,4 @@ window.addEventListener("DOMContentLoaded", () => {
     }
 });
 // I am here for one more commit and just learning making branches and merging it
+// Removed one section which only making the project bulky, and the section is only descriptive 
