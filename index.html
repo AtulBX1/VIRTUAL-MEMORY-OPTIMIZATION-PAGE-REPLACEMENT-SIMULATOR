@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Virtual Memory Optimization Challenge (Enhanced)</title>
+    <link rel="stylesheet" href="style.css" />
+    
+    <!-- Animate.css + GSAP for animations -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
+    <!-- Chart.js for sexy interactive graph -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        .timeline-wrapper { margin-top: 10px; }
+        .timeline-strip { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+        .timeline-dot { width: 10px; height: 10px; border-radius: 999px; background: #4b5563; }
+        .timeline-dot.hit { background: #22c55e; }
+        .timeline-dot.fault { background: #ef4444; }
+        .small-text { font-size: 0.75rem; }
+        #faultFramesTable tr[data-frames] { cursor: pointer; }
+        #faultFramesTable tr[data-frames]:hover { background: rgba(37, 99, 235, 0.2); }
+        .toggle-row { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; margin-top: 8px; color: #9ca3af; }
+        .toggle-row input { width: auto; }
+        .memory-map { margin-top: 12px; }
+        .memory-map h3 { font-size: 0.95rem; margin-bottom: 4px; }
+
+        /* Chart Styles */
+        .chart-wrapper { 
+            position: relative; 
+            margin-top: 10px; 
+            background: rgba(15, 23, 42, 0.9); 
+            border-radius: 12px; 
+            border: 1px solid rgba(55, 65, 81, 0.9); 
+            padding: 10px; 
+            height: 240px;
+        }
+        #statsChart { width: 100%; height: 100%; cursor: crosshair; }
+
+        /* Tutor Mode Styles */
+        .tutor-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; color: #e5e7eb; margin-top: 8px; }
+        .tutor-toggle input { accent-color: #22c55e; }
+        .tutor-explanation { margin-top: 4px; font-size: 0.75rem; color: #a5b4fc; }
+
+        /* Faults vs Frames Chart Styles */
+        /* Faults vs Frames Chart Styles */
+#faultFramesChart h3 { font-size: 1rem; margin-bottom: 8px; color: #7dd3fc; }
+
+.chart-bar.fault {
+    background: #f87171;
+    min-height: 4px;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.5s ease;
+}
+
+.chart-label {
+    margin-top: 4px;
+    display: block;          /* put labels under each bar */
+    text-align: center;
+    font-size: 0.75rem;
+}
+
+#barContainer {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;  /* spread bars across width */
+    height: 220px;                  /* taller chart */
+    border-left: 1px solid #9ca3af;
+    border-bottom: 1px solid #9ca3af;
+    padding: 0 8px 0 5px;
+}
+
+    </style>
+</head>
+<body>
+    <div class="page">
+        <header>
+            <h1>Virtual Memory Optimization Challenge</h1>
+            <p class="subtitle">
+                Interactive simulator for page replacement algorithms: FIFO, LRU, LFU, Second-Chance &amp; Optimal
+            </p>
+            <nav class="top-nav">
+                <a href="#overview" class="nav-link">Overview</a>
+                <a href="#simulator" class="nav-link">Simulator</a>
+                <a href="#comparison" class="nav-link">Comparison</a>
+                <a href="#faultExplorer" class="nav-link">Faults vs Frames</a>
+                <a href="#scenarios" class="nav-link">Scenarios</a>
+                <a href="#about" class="nav-link">About Project</a>
+            </nav>
+        </header>
+
+        <section class="card info-section fade-card" id="overview">
+    <h2>How to Use This Simulator</h2>
+    <p class="muted">
+        This section explains exactly how to run experiments on the virtual memory simulator and what to observe for your viva / project demo.
+    </p>
+    <div class="info-grid">
+        <div class="info-item">
+            <h3>Step 1: Configure Inputs</h3>
+            <p>
+                • Set <b>Number of Frames</b> (size of physical memory).<br>
+                • Enter a <b>Reference String</b> of page numbers (space or comma separated).<br>
+                • Choose a <b>Page Replacement Algorithm</b> (FIFO, LRU, LFU, Second-Chance, Optimal).
+            </p>
+        </div>
+        <div class="info-item">
+            <h3>Step 2: Run & Observe</h3>
+            <p>
+                • Use <b>Run All</b> for full simulation, or <b>Step</b> to go page by page.<br>
+                • Watch the <b>Frame Table</b>, <b>Hit/Fault Timeline</b> and <b>Stats</b> (faults, hits, hit ratio, fault rate).<br>
+                • Enable <b>Tutor Mode</b> to get explanation for each hit / fault.
+            </p>
+        </div>
+        <div class="info-item">
+            <h3>Step 3: Analyze Performance</h3>
+            <p>
+                • Use <b>Compare All Algorithms</b> to see which one performs best.<br>
+                • Use <b>Faults vs Frames Explorer</b> to study how increasing frames affects page faults (and Belady’s anomaly in FIFO).<br>
+                • Use <b>Download Report</b> for final summary you can attach in your project file.
+            </p>
+        </div>
+    </div>
+</section>
+
+
+        <main class="layout fade-card" id="simulator">
+            <section class="card controls">
+                <h2>Configuration</h2>
+
+                <label>
+                    Number of Frames
+                    <input id="frames" type="number" min="1" value="3" />
+                </label>
+
+                <label>
+                    Reference String
+                    <small>(space or comma separated)</small>
+                    <input
+                        id="refs"
+                        type="text"
+                        value="7 0 1 2 0 3 0 4 2"
+                    />
+                </label>
+
+                <label>
+                    Algorithm
+                    <select id="algo">
+                        <option value="FIFO">FIFO (First-In, First-Out)</option>
+                        <option value="LRU" selected>LRU (Least Recently Used)</option>
+                        <option value="LFU">LFU (Least Frequently Used)</option>
+                        <option value="Second-Chance">Second-Chance (Clock)</option>
+                        <option value="Optimal">Optimal (Theoretic)</option>
+                    </select>
+                </label>
+                
+                <label class="tutor-toggle">
+                    <input type="checkbox" id="tutorModeToggle" />
+                    <span>Enable Tutor Mode (Step Explanations)</span>
+                </label>
+
+                <label class="toggle-row">
+                    <input id="prefetchToggle" type="checkbox" />
+                    <span>Enable Prefetch Prediction (1-step lookahead)</span>
+                </label>
+
+                <div class="buttons">
+                    <button id="runBtn">Run All</button>
+                    <button id="stepBtn">Step</button>
+                    <button id="resetBtn" class="secondary">Reset</button>
+                </div>
+
+                <div class="buttons">
+                    <button id="compareBtn" class="secondary">
+                        Compare All Algorithms
+                    </button>
+                    <button id="downloadBtn" class="secondary">
+                        Download Report
+                    </button>
+                </div>
+
+                <div class="hint">
+                    Use <b>Step</b> to explain each fault. Second-Chance shows the R-bit (Reference Bit) in the table.
+                </div>
+            </section>
+
+            <section class="card main-view">
+                <div class="top-row">
+                    <div>
+                        <h2>Frame Table</h2>
+                        <p id="stepInfo" class="muted">
+                            Ready. Click "Run All" or "Step" to start.
+                        </p>
+                    </div>
+                    <div class="stats">
+                        <div class="stat-card">
+                            <span>Page Faults</span>
+                            <strong id="faultCount">0</strong>
+                        </div>
+                        <div class="stat-card">
+                            <span>Hits</span>
+                            <strong id="hitCount">0</strong>
+                        </div>
+                        <div class="stat-card">
+                            <span>Hit Ratio</span>
+                            <strong id="hitRatio">0.00</strong>
+                        </div>
+                        <div class="stat-card">
+                            <span>Fault Rate</span>
+                            <strong id="faultRate">0.00</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <table id="frameTable"></table>
+
+                <div class="timeline-wrapper">
+                    <div class="timeline-header">
+                        <h3>Hit / Fault Timeline</h3>
+                        <p class="muted small-text">
+                            Each dot represents a step. Green = hit, Red = fault.
+                        </p>
+                    </div>
+                    <div id="timelineStrip" class="timeline-strip"></div>
+                </div>
+
+                <div class="memory-map">
+                    <h3>Memory Map & Page Statistics</h3>
+                    <p class="muted small-text">
+                        Shows each unique page, usage frequency, and last access time.
+                    </p>
+                    <table id="memoryMapTable" class="compare-table" style="margin-top:6px;"></table>
+                </div>
+            </section>
+
+            <section class="card log-panel">
+                <h2>Event Log</h2>
+                <div id="log" class="log-list"></div>
+            </section>
+        </main>
+
+        <section class="card comparison-card fade-card" id="chartCard">
+            <h2>Interactive Performance Chart</h2>
+            <p class="muted">
+              Tracks Hit Ratio over time. Hover to inspect steps; Chart updates live as you simulate.
+            </p>
+            <div class="chart-wrapper">
+                <canvas id="statsChart"></canvas>
+            </div>
+        </section>
+
+        <section class="card comparison-card fade-card" id="comparison">
+            <div class="comparison-header">
+                <h2>Algorithm Comparison</h2>
+                <p class="muted">
+                    Compare aggregate performance of all algorithms on the same reference string and frame count.
+                </p>
+            </div>
+
+            <table id="compareTable" class="compare-table"></table>
+        </section><br>
+
+        <section class="card fade-card" id="faultExplorer">
+            <h2>Faults vs Frames Explorer</h2>
+            <p class="muted">
+                Explore how the number of frames affects total page faults. This is used to study Belady's anomaly (FIFO only).
+            </p>
+            <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <label style="font-size:0.85rem;">
+                    Maximum Frames:
+                    <input id="maxFrames" type="number" min="1" value="6" style="width:80px; margin-left:4px;" />
+                </label>
+                <button id="faultExplorerBtn" class="secondary">Generate Analysis</button>
+                <span id="beladyAnomaly" class="muted small-text">Belady's Anomaly check result goes here.</span>
+            </div>
+            
+            <div id="faultFramesChart"></div>
+            <table id="faultFramesTable" class="compare-table" style="margin-top:10px;"></table>
+        </section>
+
+        <!-- <section class="card fade-card" id="quizCard">
+  <h2>Observation & Viva Notes Generator</h2>
+  <p class="muted">
+    After completing a simulation, this panel auto-generates short observation points and viva-ready notes based on the algorithm, page faults and hit ratio.
+  </p>
+  <div id="quizPanel"></div>
+</section> -->
+
+
+        <section class="card scenarios-card fade-card" id="scenarios">
+            <h2>Preset Scenarios</h2>
+            <p class="muted">
+                Quickly load common patterns and observe how different algorithms respond.
+            </p>
+            <div class="scenario-buttons">
+                <button id="scenarioTextbook" class="secondary">
+                    Standard Textbook Case
+                </button>
+                <button id="scenarioLocality" class="secondary">
+                    High Locality Workload
+                </button>
+                <button id="scenarioRandom" class="secondary">
+                    Random Workload (Stress Test)
+                </button>
+                <button id="scenarioBelady" class="secondary">
+                    Belady's Anomaly Case (FIFO)
+                </button>
+            </div>
+            <ul class="scenario-notes">
+                <li><b>Textbook Example:</b> Standard sequence to test basic behavior of all algorithms.</li>
+                <li><b>High Locality:</b> Favors algorithms like LRU/LFU which exploit recent/frequent usage.</li>
+                <li><b>Random Workload:</b> Shows average behavior on noisy, unpredictable access patterns.</li>
+                <li><b>Belady's Anomaly Case:</b> Loads a string designed for FIFO to demonstrate increased faults with more frames.</li>
+            </ul>
+        </section>
+
+        <!-- <section class="card info-section fade-card" id="about">
+    <h2>Implementation & Learning Outcomes</h2>
+    <p class="muted">
+        This section summarises how the project is implemented and what key OS concepts were learned while building the Virtual Memory Optimization Challenge.
+    </p>
+    <div class="info-grid">
+        <div class="info-item">
+            <h3>Implementation Highlights</h3>
+            <ul>
+                <li>Frontend built using <b>HTML, CSS, JavaScript</b> only (no backend required).</li>
+                <li>Custom simulator for page replacement algorithms: FIFO, LRU, LFU, Second-Chance, Optimal.</li>
+                <li>Uses arrays and objects to represent frames, reference strings, frequency counts and timestamps.</li>
+                <li>Chart.js used for live <b>Hit Ratio</b> graph, plus custom bar charts for comparisons.</li>
+            </ul>
+        </div>
+        <div class="info-item">
+            <h3>Operating System Concepts</h3>
+            <ul>
+                <li>Virtual memory, logical vs physical address space.</li>
+                <li>Demand paging and page faults.</li>
+                <li>Page replacement strategies and their impact on performance.</li>
+                <li>Belady’s anomaly behaviour in FIFO.</li>
+            </ul>
+        </div>
+        <div class="info-item">
+            <h3>Student Learning Outcomes</h3>
+            <ul>
+                <li>Ability to simulate and compare different page replacement algorithms.</li>
+                <li>Experience in designing interactive visualizations for OS concepts.</li>
+                <li>Improved understanding of how memory management policies affect hit ratio & fault rate.</li>
+                <li>Hands-on practice writing clean, modular JavaScript for simulations.</li>
+            </ul>
+        </div>
+    </div>
+</section> -->
+
+
+        <footer>
+            <small>
+                OS Mini Project &mdash; Virtual Memory Optimization Challenge
+            </small>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
